@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>body{margin:0}</style>
+<title>Pomodoro Sayacı</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;500;600&display=swap">
+<style>
+/* Layout: boyutlar rem ile yazıldı, script pencereye göre kök yazı boyutunu büyütür. Dar ya da dikey ekranda tek sütun; geniş yatay ekranda solda büyük kadran kartı, sağda seçici, düğmeler ve tur hapı. Yalnızca siyah, beyaz ve griler. */
+:root {
+  --bg: #f2f2f4;
+  --glow: #ffffff;
+  --card: rgba(255, 255, 255, 0.72);
+  --card-line: rgba(0, 0, 0, 0.06);
+  --card-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 28px 60px -28px rgba(0, 0, 0, 0.22), 0 2px 10px rgba(0, 0, 0, 0.04);
+  --fg: #0a0a0b;
+  --muted: #6e6e73;
+  --track: rgba(0, 0, 0, 0.08);
+  --tick: rgba(0, 0, 0, 0.26);
+  --tick-big: rgba(0, 0, 0, 0.62);
+  --seg-bg: rgba(0, 0, 0, 0.06);
+  --thumb: #ffffff;
+  --thumb-shadow: 0 1px 1px rgba(0, 0, 0, 0.06), 0 3px 8px rgba(0, 0, 0, 0.12);
+  --btn-sec: rgba(0, 0, 0, 0.07);
+  --ring-out: rgba(0, 0, 0, 0.18);
+  --dot-glow: rgba(0, 0, 0, 0.28);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Figtree", system-ui, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #000000; --glow: #27272b;
+    --card: rgba(28, 28, 30, 0.72); --card-line: rgba(255, 255, 255, 0.08);
+    --card-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 30px 60px -30px rgba(0, 0, 0, 0.9);
+    --fg: #f5f5f7; --muted: #98989d; --track: rgba(255, 255, 255, 0.1);
+    --tick: rgba(255, 255, 255, 0.28); --tick-big: rgba(255, 255, 255, 0.72);
+    --seg-bg: rgba(118, 118, 128, 0.24); --thumb: #636366;
+    --thumb-shadow: 0 1px 1px rgba(0, 0, 0, 0.3), 0 3px 8px rgba(0, 0, 0, 0.35);
+    --btn-sec: rgba(255, 255, 255, 0.14); --ring-out: rgba(255, 255, 255, 0.22);
+    --dot-glow: rgba(255, 255, 255, 0.6); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #000000; --glow: #27272b;
+  --card: rgba(28, 28, 30, 0.72); --card-line: rgba(255, 255, 255, 0.08);
+  --card-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 30px 60px -30px rgba(0, 0, 0, 0.9);
+  --fg: #f5f5f7; --muted: #98989d; --track: rgba(255, 255, 255, 0.1);
+  --tick: rgba(255, 255, 255, 0.28); --tick-big: rgba(255, 255, 255, 0.72);
+  --seg-bg: rgba(118, 118, 128, 0.24); --thumb: #636366;
+  --thumb-shadow: 0 1px 1px rgba(0, 0, 0, 0.3), 0 3px 8px rgba(0, 0, 0, 0.35);
+  --btn-sec: rgba(255, 255, 255, 0.14); --ring-out: rgba(255, 255, 255, 0.22);
+  --dot-glow: rgba(255, 255, 255, 0.6); color-scheme: dark;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { min-height: 100%; }
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(60rem 32rem at 50% -8%, var(--glow), transparent 70%);
+  background-repeat: no-repeat;
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-block: 1.75rem 2.5rem;
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+}
+main { width: 100%; max-width: 27.5rem; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1.625rem; }
+.panel { display: contents; }
+.seg.top { order: 1; }
+.card { order: 2; }
+.controls { order: 3; }
+.foot { order: 4; }
+button { font: inherit; color: inherit; }
+button:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+
+/* iOS tarzı kayan seçici */
+.seg { position: relative; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); background: var(--seg-bg); border-radius: 0.75rem; padding: 0.1875rem; width: 100%; transition: opacity 0.25s; }
+.seg::before {
+  content: ""; position: absolute; top: 0.1875rem; bottom: 0.1875rem; left: 0.1875rem;
+  width: calc((100% - 0.375rem) / var(--n)); border-radius: 0.5625rem;
+  background: var(--thumb); box-shadow: var(--thumb-shadow);
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform 0.42s cubic-bezier(0.3, 1.25, 0.4, 1);
+}
+.seg button { position: relative; z-index: 1; background: none; border: 0; border-radius: 0.5625rem; padding: 0.5rem 0.25rem; font-size: 0.8125rem; font-weight: 500; color: var(--muted); cursor: pointer; transition: color 0.2s; min-width: 0; white-space: nowrap; }
+.seg button[aria-pressed="true"] { color: var(--fg); font-weight: 600; }
+.seg.top { max-width: 18.75rem; }
+.seg.top button { padding: 0.5625rem 0.25rem; font-size: 0.875rem; }
+.seg.off { opacity: 0; pointer-events: none; }
+
+/* Kart */
+.card {
+  position: relative; width: 100%; border-radius: 2.25rem; padding: 1.125rem 1.125rem 2.375rem;
+  background: var(--card); border: 1px solid var(--card-line); box-shadow: var(--card-shadow);
+  -webkit-backdrop-filter: saturate(180%) blur(30px); backdrop-filter: saturate(180%) blur(30px);
+  display: flex; flex-direction: column; align-items: center; gap: 0.875rem;
+}
+.dial { position: relative; width: min(100%, 21.25rem); aspect-ratio: 1; max-width: 100%; container-type: inline-size; }
+.dial svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.tick { stroke: var(--tick); stroke-linecap: round; }
+.tick.big { stroke: var(--tick-big); }
+.track { fill: none; stroke: var(--track); stroke-width: 4; }
+.ring { fill: none; stroke: var(--fg); stroke-width: 4; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 100px 100px; }
+.head circle { fill: var(--fg); filter: drop-shadow(0 0 5px var(--dot-glow)); }
+.readout { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.4rem; }
+.time { font-weight: 200; font-size: 4.5rem; font-size: 22cqw; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; line-height: 1; transition: font-size 0.25s; }
+.time.long { font-size: 3.2rem; font-size: 15.5cqw; }
+.label { font-size: 0.75rem; font-size: 3.6cqw; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.dial.pulse::after { content: ""; position: absolute; inset: 4%; border-radius: 50%; border: 2px solid var(--fg); animation: ripple 1.3s ease-out; pointer-events: none; }
+@keyframes ripple { from { transform: scale(0.88); opacity: 0.55; } to { transform: scale(1.14); opacity: 0; } }
+.toast { position: absolute; left: 1rem; right: 1rem; bottom: 0.75rem; pointer-events: none; font-size: 0.875rem; color: var(--muted); opacity: 0; transform: translateY(4px); transition: opacity 0.4s, transform 0.4s; text-align: center; }
+.toast.on { opacity: 1; transform: none; }
+
+/* Yuvarlak düğmeler */
+.controls { display: flex; justify-content: center; gap: 2.25rem; }
+.circle { position: relative; width: 5.25rem; height: 5.25rem; border-radius: 50%; border: 0; font-size: 0.9375rem; font-weight: 500; cursor: pointer; transition: transform 0.18s cubic-bezier(0.3, 1.4, 0.5, 1), background 0.25s, color 0.25s; }
+.circle::after { content: ""; position: absolute; inset: -0.3125rem; border-radius: 50%; border: 1px solid var(--ring-out); pointer-events: none; }
+.circle:active { transform: scale(0.93); }
+.circle.sec { background: var(--btn-sec); color: var(--fg); }
+.circle.pri { background: var(--fg); color: var(--bg); }
+.circle.pri.running { background: var(--btn-sec); color: var(--fg); }
+
+/* Günlük tur hapı */
+.foot { display: flex; align-items: center; justify-content: center; gap: 0.875rem; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; gap: 0.75rem; padding: 0.5625rem 1rem; border-radius: 999px; background: var(--card); border: 1px solid var(--card-line); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); font-size: 0.8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pill b { color: var(--fg); font-weight: 600; }
+.dots { display: flex; gap: 0.375rem; }
+.dots span { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--track); transition: background 0.3s, transform 0.3s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.dots span.on { background: var(--fg); transform: scale(1.15); }
+.linkbtn { background: none; border: 0; padding: 0.25rem 0.125rem; font-size: 0.8125rem; color: var(--muted); cursor: pointer; }
+.linkbtn:hover { color: var(--fg); }
+
+/* Geniş yatay ekran: solda büyük kadran, sağda kontroller */
+[data-layout="wide"] main { max-width: 46rem; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: center; column-gap: 3.5rem; }
+[data-layout="wide"] .panel { display: flex; flex-direction: column; align-items: center; gap: 2.25rem; min-width: 0; }
+[data-layout="wide"] .card { order: 0; }
+[data-layout="wide"] .seg.top { max-width: 100%; }
+
+.linkbtn.hist-open { color: var(--fg); font-weight: 600; }
+
+/* Geçmiş sayfası */
+.hist { position: fixed; inset: 0; z-index: 50; overflow-y: auto; background-color: var(--bg); background-image: radial-gradient(60rem 32rem at 50% -8%, var(--glow), transparent 70%); background-repeat: no-repeat; padding-top: max(1.5rem, calc(env(safe-area-inset-top, 0px) + 1rem)); padding-bottom: max(2rem, calc(env(safe-area-inset-bottom, 0px) + 1rem)); padding-left: max(1rem, env(safe-area-inset-left, 0px)); padding-right: max(1rem, env(safe-area-inset-right, 0px)); }
+.hist-in { max-width: 40rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1.125rem; }
+.hist-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.hist h2 { margin: 0; font-size: 1.625rem; font-weight: 600; letter-spacing: -0.02em; }
+.pillbtn { background: var(--btn-sec); border: 0; border-radius: 999px; padding: 0.5rem 1.125rem; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
+.pillbtn:hover { background: var(--seg-bg); }
+.tablewrap { overflow: auto; max-height: min(62vh, 36rem); border: 1px solid var(--card-line); border-radius: 1.25rem; background: var(--bg); box-shadow: var(--card-shadow); }
+.tbl { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+.tbl th { position: sticky; top: 0; z-index: 2; background: var(--bg); text-align: left; font-size: 0.6875rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 0.75rem 0.875rem; border-bottom: 1px solid var(--card-line); white-space: nowrap; }
+.tbl td { padding: 0.75rem 0.875rem; border-bottom: 1px solid var(--card-line); white-space: nowrap; }
+.tbl tbody tr:last-child td { border-bottom: 0; }
+.tbl .num { text-align: right; }
+.tbl td.when { color: var(--muted); }
+.tbl .emptyrow { white-space: normal; color: var(--muted); text-align: center; padding: 2rem 1rem; }
+.tag { font-size: 0.75rem; color: var(--muted); }
+.tag.part { display: table; margin-top: 0.25rem; color: var(--fg); border: 1px solid var(--ring-out); border-radius: 999px; padding: 0.0625rem 0.5rem; }
+.tbl tfoot td { position: sticky; bottom: 0; z-index: 2; background: var(--bg); border-top: 1px solid var(--tick); border-bottom: 0; padding: 1rem 0.875rem; white-space: normal; }
+.totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: 0.875rem 1.5rem; }
+.tot { display: flex; flex-direction: column; gap: 0.125rem; }
+.tot .tl { font-size: 0.6875rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.tot .tv { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; }
+.hist .note { margin: 0; font-size: 0.875rem; color: var(--muted); }
+.hist .note:empty { display: none; }
+@media (max-width: 480px) { .tbl th, .tbl td { padding-left: 0.625rem; padding-right: 0.625rem; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .seg::before, .circle, .dots span, .toast, .time, .seg { transition: none; }
+  .dial.pulse::after { animation: none; }
+}
+</style>
+</head>
+<body>
+
+
+<main>
+  <div class="card">
+    <div class="seg" id="seg-dur" style="--n:4;--i:0" role="group" aria-label="Süre seçimi">
+      <button type="button" id="m-focus" aria-pressed="true">Odak 25</button>
+      <button type="button" id="m-focus45" aria-pressed="false">Odak 45</button>
+      <button type="button" id="m-short" aria-pressed="false">Mola 5</button>
+      <button type="button" id="m-long" aria-pressed="false">Uzun 15</button>
+    </div>
+
+    <div class="dial" id="dial">
+      <svg viewBox="0 0 200 200" aria-hidden="true">
+        <g id="ticks"></g>
+        <circle class="track" cx="100" cy="100" r="82"></circle>
+        <circle class="ring" id="ring" cx="100" cy="100" r="82"></circle>
+        <g class="head" id="head"><circle cx="100" cy="18" r="4.5"></circle></g>
+      </svg>
+      <div class="readout">
+        <div class="time" id="time" role="timer" aria-live="off">25:00</div>
+        <div class="label" id="label">Odaklan</div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+
+  <div class="panel">
+    <div class="seg top" id="seg-top" style="--n:2;--i:0" role="group" aria-label="Görünüm">
+      <button type="button" id="v-timer" aria-pressed="true">Zamanlayıcı</button>
+      <button type="button" id="v-sw" aria-pressed="false">Kronometre</button>
+    </div>
+
+    <div class="controls">
+      <button type="button" class="circle sec" id="reset">Sıfırla</button>
+      <button type="button" class="circle pri" id="start">Başlat</button>
+    </div>
+
+    <div class="foot">
+      <div class="pill">
+        <div class="dots" id="dots" aria-label="Döngü ilerlemesi"></div>
+        <span>Bugün <b id="today">0</b> tur</span>
+      </div>
+      <button type="button" class="linkbtn hist-open" id="open-hist">Geçmiş</button>
+      <button type="button" class="linkbtn" id="reset-day">Günü sıfırla</button>
+    </div>
+  </div>
+</main>
+
+<div class="hist" id="hist" role="dialog" aria-modal="true" aria-labelledby="hist-title" hidden>
+  <div class="hist-in">
+    <div class="hist-top">
+      <h2 id="hist-title">Geçmiş</h2>
+      <button type="button" class="pillbtn" id="hist-close">Kapat</button>
+    </div>
+    <div class="tablewrap">
+      <table class="tbl">
+        <thead><tr><th>Zaman</th><th>Tür</th><th class="num">Süre</th></tr></thead>
+        <tbody id="hist-body"></tbody>
+        <tfoot><tr><td colspan="3"><div class="totals" id="totals"></div></td></tr></tfoot>
+      </table>
+    </div>
+    <p class="note" id="hist-note"></p>
+    <div><button type="button" class="linkbtn" id="hist-clear">Geçmişi temizle</button></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var MODES = {
+    focus:   { sec: 25 * 60, label: "Odaklan" },
+    focus45: { sec: 45 * 60, label: "Odaklan" },
+    short:   { sec: 5 * 60,  label: "Kısa mola" },
+    long:    { sec: 15 * 60, label: "Uzun mola" },
+    sw:      { sec: 0,       label: "Kronometre" }
+  };
+  var DUR = ["focus", "focus45", "short", "long"];
+  var C = 2 * Math.PI * 82;
+  var NS = "http://www.w3.org/2000/svg";
+
+  function $(id) { return document.getElementById(id); }
+  var ring = $("ring"), head = $("head"), timeEl = $("time"), labelEl = $("label");
+  var startBtn = $("start"), dotsEl = $("dots"), dial = $("dial"), toastEl = $("toast");
+  ring.style.strokeDasharray = C;
+
+  /* pencereye göre ölçekleme */
+  function fit() {
+    var w = window.innerWidth, h = window.innerHeight;
+    var wide = w / h >= 1.3 && w >= 760;
+    var k = wide ? Math.min(w / 780, h / 545, 3) : Math.min(w / 470, h / 790, 2.6);
+    k = Math.max(1, k);
+    var root = document.documentElement;
+    root.setAttribute("data-layout", wide ? "wide" : "single");
+    root.style.fontSize = (16 * k) + "px";
+  }
+  fit();
+  window.addEventListener("resize", fit);
+
+  /* kadran çizgileri */
+  var ticks = $("ticks");
+  for (var i = 0; i < 60; i++) {
+    var big = i % 5 === 0;
+    var ln = document.createElementNS(NS, "line");
+    ln.setAttribute("x1", 100); ln.setAttribute("x2", 100);
+    ln.setAttribute("y1", 0); ln.setAttribute("y2", big ? 8 : 4.5);
+    ln.setAttribute("stroke-width", big ? 1.8 : 1.1);
+    ln.setAttribute("class", "tick" + (big ? " big" : ""));
+    ln.setAttribute("transform", "rotate(" + (i * 6) + " 100 100)");
+    ticks.appendChild(ln);
+  }
+
+  var mode = "focus", lastTimer = "focus", lastFocus = "focus";
+  var remaining = MODES.focus.sec, endAt = 0, timer = null;
+  var swMs = 0, swStartAt = 0, raf = 0;
+  var cycle = 0, todayCount = 0, toastTimer = null;
+  var todayKey = new Date().toISOString().slice(0, 10);
+
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem("pomodoro") || "{}");
+      if (d.day === todayKey) todayCount = d.count || 0;
+    } catch (e) {}
+  }
+  function save() {
+    try { localStorage.setItem("pomodoro", JSON.stringify({ day: todayKey, count: todayCount })); } catch (e) {}
+  }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function fmt(s) { return pad(Math.floor(s / 60)) + ":" + pad(s % 60); }
+  function fmtSW(s) {
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+    return h > 0 ? h + ":" + pad(m) + ":" + pad(r) : pad(m) + ":" + pad(r);
+  }
+  function isFocus(m) { return m === "focus" || m === "focus45"; }
+
+  function currentFrac() {
+    if (mode === "sw") {
+      var ms = timer ? Date.now() - swStartAt : swMs;
+      return (ms % 60000) / 60000;
+    }
+    var total = MODES[mode].sec * 1000;
+    var rem = timer ? Math.max(0, endAt - Date.now()) : remaining * 1000;
+    return 1 - rem / total;
+  }
+  function drawRing() {
+    var f = currentFrac();
+    ring.style.strokeDashoffset = C * (1 - f);
+    ring.style.opacity = f < 0.003 ? 0 : 1;
+    head.setAttribute("transform", "rotate(" + (f * 360) + " 100 100)");
+  }
+  function loop() {
+    drawRing();
+    if (timer) raf = requestAnimationFrame(loop);
+  }
+  function startLoop() { cancelAnimationFrame(raf); raf = requestAnimationFrame(loop); }
+
+  function render() {
+    var isSW = mode === "sw";
+    var shown, lab, btn;
+    if (isSW) {
+      var secs = Math.floor(swMs / 1000);
+      shown = fmtSW(secs);
+      lab = timer ? "Çalışıyor" : (swMs > 0 ? "Duraklatıldı" : "Kronometre");
+      btn = timer ? "Duraklat" : (swMs > 0 ? "Devam" : "Başlat");
+    } else {
+      var total = MODES[mode].sec;
+      shown = fmt(remaining);
+      lab = timer ? MODES[mode].label : (remaining === total ? MODES[mode].label : "Duraklatıldı");
+      btn = timer ? "Duraklat" : (remaining < total ? "Devam" : "Başlat");
+    }
+    timeEl.textContent = shown;
+    timeEl.className = "time" + (shown.length > 5 ? " long" : "");
+    labelEl.textContent = lab;
+    startBtn.textContent = btn;
+    startBtn.className = "circle pri" + (timer ? " running" : "");
+    document.title = (timer ? shown + " · " : "") + "Pomodoro Sayacı";
+
+    $("seg-top").style.setProperty("--i", isSW ? 1 : 0);
+    $("v-timer").setAttribute("aria-pressed", String(!isSW));
+    $("v-sw").setAttribute("aria-pressed", String(isSW));
+    var seg = $("seg-dur");
+    seg.style.setProperty("--i", Math.max(0, DUR.indexOf(isSW ? lastTimer : mode)));
+    seg.className = "seg" + (isSW ? " off" : "");
+    seg.inert = isSW;
+    DUR.forEach(function (k) { $("m-" + k).setAttribute("aria-pressed", String(!isSW && k === mode)); });
+
+    $("today").textContent = todayCount;
+    dotsEl.innerHTML = "";
+    for (var i = 0; i < 4; i++) {
+      var s = document.createElement("span");
+      if (i < cycle) s.className = "on";
+      dotsEl.appendChild(s);
+    }
+    drawRing();
+  }
+
+  /* geçmiş */
+  var HKEY = "pomodoro-gecmis";
+  var hist = [];
+  var ov = $("hist");
+  var MON = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+  var TYPE = { focus: "Odak 25", focus45: "Odak 45", short: "Mola 5", long: "Uzun mola 15", sw: "Kronometre" };
+
+  function loadHist() {
+    try {
+      var a = JSON.parse(localStorage.getItem(HKEY) || "[]");
+      if (Array.isArray(a)) hist = a.filter(function (e) { return e && TYPE[e.m] && e.d > 0; });
+    } catch (e) {}
+  }
+  function saveHist() {
+    try { localStorage.setItem(HKEY, JSON.stringify(hist)); } catch (e) {}
+  }
+  function addEntry(e) {
+    e.t = Date.now();
+    hist.push(e);
+    if (hist.length > 1000) hist = hist.slice(-1000);
+    saveHist();
+    if (!ov.hidden) renderHist();
+  }
+  function logPartial() {
+    var d;
+    if (mode === "sw") {
+      d = Math.floor((timer ? Date.now() - swStartAt : swMs) / 1000);
+      if (d >= 10) addEntry({ m: "sw", d: d, ok: true });
+    } else {
+      var rem = timer ? Math.max(0, Math.ceil((endAt - Date.now()) / 1000)) : remaining;
+      d = MODES[mode].sec - rem;
+      if (d >= 10 && rem > 0) addEntry({ m: mode, d: d, ok: false });
+    }
+  }
+  function fmtDur(s) {
+    s = Math.round(s);
+    if (s <= 0) return "0 dk";
+    if (s < 60) return s + " sn";
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+    if (h > 0) return h + " sa " + m + " dk";
+    return m + " dk" + (r ? " " + r + " sn" : "");
+  }
+  function whenLabel(ts) {
+    var d = new Date(ts), n = new Date();
+    var hm = pad(d.getHours()) + ":" + pad(d.getMinutes());
+    if (d.toDateString() === n.toDateString()) return "Bugün " + hm;
+    var y = new Date(n.getFullYear(), n.getMonth(), n.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return "Dün " + hm;
+    return d.getDate() + " " + MON[d.getMonth()] + (d.getFullYear() !== n.getFullYear() ? " " + d.getFullYear() : "") + " " + hm;
+  }
+  function cell(tr, text, cls) {
+    var td = document.createElement("td");
+    if (cls) td.className = cls;
+    td.textContent = text;
+    tr.appendChild(td);
+    return td;
+  }
+  function renderHist() {
+    var body = $("hist-body");
+    body.innerHTML = "";
+    var f = 0, b = 0, s = 0;
+    hist.forEach(function (e) {
+      if (e.m === "sw") s += e.d; else if (isFocus(e.m)) f += e.d; else b += e.d;
+    });
+    if (!hist.length) {
+      var er = document.createElement("tr");
+      var etd = cell(er, "Henüz kayıt yok. Bir tur bitince ya da yarıda bıraktığında burada görünür.", "emptyrow");
+      etd.colSpan = 3;
+      body.appendChild(er);
+    }
+    for (var i = hist.length - 1; i >= 0; i--) {
+      var e = hist[i], tr = document.createElement("tr");
+      cell(tr, whenLabel(e.t), "when");
+      var tt = cell(tr, TYPE[e.m]);
+      if (!e.ok) {
+        var tag = document.createElement("span");
+        tag.className = "tag part";
+        tag.textContent = "Yarım";
+        tt.appendChild(tag);
+      }
+      cell(tr, fmtDur(e.d), "num");
+      body.appendChild(tr);
+    }
+    var box = $("totals");
+    box.innerHTML = "";
+    function tot(l, v) {
+      var d = document.createElement("div"); d.className = "tot";
+      var a = document.createElement("span"); a.className = "tl"; a.textContent = l;
+      var c = document.createElement("span"); c.className = "tv"; c.textContent = v;
+      d.appendChild(a); d.appendChild(c); box.appendChild(d);
+    }
+    tot("Toplam odak", fmtDur(f));
+    tot("Toplam mola", fmtDur(b));
+    if (s > 0) tot("Kronometre", fmtDur(s));
+    $("hist-note").textContent = (f + b > 0)
+      ? "Odak ve mola süresinin %" + Math.round(f / (f + b) * 100) + "'i odakta geçti."
+      : "";
+  }
+
+  var clearArmed = false, clearTimer = null, opener = null;
+  function disarm() {
+    clearArmed = false; clearTimeout(clearTimer);
+    $("hist-clear").textContent = "Geçmişi temizle";
+  }
+  function openHist() {
+    opener = document.activeElement;
+    renderHist();
+    ov.hidden = false;
+    document.querySelector("main").inert = true;
+    $("hist-close").focus();
+  }
+  function closeHist() {
+    ov.hidden = true;
+    document.querySelector("main").inert = false;
+    disarm();
+    if (opener && opener.focus) opener.focus();
+  }
+
+  var audioCtx = null;
+  function beep() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.28, 0.56].forEach(function (t) {
+        var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = "sine"; o.frequency.value = 880;
+        g.gain.setValueAtTime(0.0001, audioCtx.currentTime + t);
+        g.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + t + 0.22);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + 0.25);
+      });
+    } catch (e) {}
+    try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (e) {}
+  }
+
+  function toast(t) {
+    toastEl.textContent = t;
+    toastEl.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("on"); }, 4000);
+  }
+  function pulse() {
+    dial.classList.remove("pulse");
+    void dial.offsetWidth;
+    dial.classList.add("pulse");
+    setTimeout(function () { dial.classList.remove("pulse"); }, 1400);
+  }
+
+  function stop() { clearInterval(timer); timer = null; cancelAnimationFrame(raf); }
+
+  function setMode(m, skipLog) {
+    if (!skipLog) logPartial();
+    stop();
+    mode = m;
+    if (m !== "sw") { lastTimer = m; remaining = MODES[m].sec; }
+    if (isFocus(m)) lastFocus = m;
+    swMs = 0;
+    render();
+  }
+
+  function finish() {
+    stop();
+    beep();
+    pulse();
+    addEntry({ m: mode, d: MODES[mode].sec, ok: true });
+    if (isFocus(mode)) {
+      todayCount++; cycle++; save();
+      if (cycle >= 4) { cycle = 0; setMode("long", true); toast("Dört tur tamam. Uzun mola zamanı."); }
+      else { setMode("short", true); toast("Tur tamam. Kısa mola zamanı."); }
+    } else {
+      setMode(lastFocus, true);
+      toast("Mola bitti. Yeni tura hazırsın.");
+    }
+  }
+
+  function tick() {
+    var left = endAt - Date.now();
+    remaining = Math.max(0, Math.ceil(left / 1000));
+    render();
+    if (left <= 0) finish();
+  }
+  function tickSW() {
+    swMs = Date.now() - swStartAt;
+    render();
+  }
+
+  function toggle() {
+    if (timer) {
+      if (mode === "sw") swMs = Date.now() - swStartAt;
+      else remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      stop(); render(); return;
+    }
+    if (mode === "sw") {
+      swStartAt = Date.now() - swMs;
+      timer = setInterval(tickSW, 200);
+    } else {
+      if (remaining <= 0) remaining = MODES[mode].sec;
+      endAt = Date.now() + remaining * 1000;
+      timer = setInterval(tick, 250);
+    }
+    render();
+    startLoop();
+  }
+
+  startBtn.addEventListener("click", toggle);
+  $("reset").addEventListener("click", function () { setMode(mode); });
+  $("reset-day").addEventListener("click", function () { todayCount = 0; cycle = 0; save(); render(); });
+  $("v-timer").addEventListener("click", function () { if (mode === "sw") setMode(lastTimer); });
+  $("v-sw").addEventListener("click", function () { if (mode !== "sw") setMode("sw"); });
+  DUR.forEach(function (k) { $("m-" + k).addEventListener("click", function () { setMode(k); }); });
+  document.addEventListener("keydown", function (e) {
+    if (e.code === "Space" && e.target === document.body) { e.preventDefault(); toggle(); }
+  });
+
+  $("open-hist").addEventListener("click", openHist);
+  $("hist-close").addEventListener("click", closeHist);
+  $("hist-clear").addEventListener("click", function () {
+    if (!clearArmed) {
+      clearArmed = true;
+      this.textContent = "Emin misin? Tekrar bas";
+      clearTimeout(clearTimer);
+      clearTimer = setTimeout(disarm, 4000);
+      return;
+    }
+    disarm();
+    hist = [];
+    saveHist();
+    renderHist();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !ov.hidden) closeHist();
+  });
+
+  load();
+  loadHist();
+  render();
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
